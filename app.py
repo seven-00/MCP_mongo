@@ -1,11 +1,12 @@
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-from database import db_instance
-from config import Config
 import atexit
 import re
 from datetime import datetime
 from bson import ObjectId
+from flask import Flask, request, jsonify, render_template
+from flask_cors import CORS
+from database import db_instance
+from config import Config
+
 import json
 
 app = Flask(__name__)
@@ -328,6 +329,17 @@ def get_collection_schema(collection_name):
             "error": str(e),
             "collection": collection_name
         }), 500
+
+
+@app.route('/')
+def dashboard():
+    # Example: Fetch collection stats for the dashboard
+    collections = db_instance.db.list_collection_names()
+    stats = []
+    for name in collections:
+        count = db_instance.db[name].count_documents({})
+        stats.append({"name": name, "count": count})
+    return render_template('dashboard.html', collections=stats)
 
 @app.route('/collection/<collection_name>/aggregate', methods=['POST'])
 def aggregate_collection(collection_name):

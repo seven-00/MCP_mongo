@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1 class="mb-4"></h1>
+ <h1>Database Connection Status</h1>
+  <div id="status" class="status">Checking...</div>
+  <div id="details" class="info"></div>
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Collection Name</th>
+            <th>Document Count</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for collection in collections %}
+        <tr>
+            <td>{{ collection.name }}</td>
+            <td>{{ collection.count }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
