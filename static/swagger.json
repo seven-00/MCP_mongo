@@ -1,0 +1,164 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "title": "MongoDB Flask API",
+        "description": "Interactive API Documentation for MongoDB Flask API",
+        "version": "1.0.0"
+    },
+    "host": "127.0.0.1:5000",
+    "schemes": [
+        "http"
+    ],
+    "paths": {
+        "/health": {
+            "get": {
+                "summary": "Health Check",
+                "description": "Health check with database stats",
+                "responses": {
+                    "200": {
+                        "description": "Database connection status and statistics"
+                    }
+                }
+            }
+        },
+        "/collections": {
+            "get": {
+                "summary": "Get Collections",
+                "description": "List all collections with counts and sample fields",
+                "responses": {
+                    "200": {
+                        "description": "Array of collection information"
+                    }
+                }
+            }
+        },
+        "/query/{collection}": {
+            "get": {
+                "summary": "Query Collection with Advanced Filtering",
+                "description": "Query collection with advanced filtering",
+                "parameters": [
+                    {
+                        "name": "collection",
+                        "in": "path",
+                        "required": true,
+                        "type": "string",
+                        "description": "The name of the collection to query"
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "required": false,
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Number of documents to return (max 1000)"
+                    },
+                    {
+                        "name": "skip",
+                        "in": "query",
+                        "required": false,
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Number of documents to skip"
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "description": "Sort fields (comma-separated, prefix with - for desc)"
+                    },
+                    {
+                        "name": "fields",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "description": "Fields to include/exclude (comma-separated, prefix with - to exclude)"
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "description": "Text search across common fields"
+                    },
+                    {
+                        "name": "field__operator",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "description": "Advanced filtering (gte, lte, gt, lt, ne, in, nin, regex, exists)"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Query results"
+                    }
+                }
+            }
+        },
+        "/collection/{collection}/schema": {
+            "get": {
+                "summary": "Get Schema Information",
+                "description": "Get schema information for collection",
+                "parameters": [
+                    {
+                        "name": "collection",
+                        "in": "path",
+                        "required": true,
+                        "type": "string",
+                        "description": "The name of the collection to analyze"
+                    },
+                    {
+                        "name": "sample_size",
+                        "in": "query",
+                        "required": false,
+                        "type": "integer",
+                        "description": "Number of documents to sample for schema inference"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Schema information"
+                    }
+                }
+            }
+        },
+        "/collection/{collection}/aggregate": {
+            "post": {
+                "summary": "Execute MongoDB Aggregation Pipeline",
+                "description": "Execute MongoDB aggregation pipeline",
+                "parameters": [
+                    {
+                        "name": "collection",
+                        "in": "path",
+                        "required": true,
+                        "type": "string",
+                        "description": "The name of the collection to aggregate"
+                    },
+                    {
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "pipeline": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object"
+                                    },
+                                    "description": "Array of aggregation stages"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Aggregation results"
+                    }
+                }
+            }
+        }
+    }
+}

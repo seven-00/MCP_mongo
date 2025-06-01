@@ -1,16 +1,24 @@
 import atexit
 import re
+import os
 from datetime import datetime
 from bson import ObjectId
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 from database import db_instance
 from config import Config
+from flask_swagger_ui import get_swaggerui_blueprint
 
 import json
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for frontend integration
+
+SWAGGER_URL = '/docs'
+API_URL = '/static/swagger.json'  # Path to the OpenAPI JSON spec
+
+swaggerui_blueprint = get_swaggerui_blueprint(SWAGGER_URL, API_URL)
+app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
 
 # Register cleanup function
 atexit.register(lambda: db_instance.close_connection())
@@ -375,54 +383,6 @@ def aggregate_collection(collection_name):
             "collection": collection_name
         }), 500
 
-@app.route('/docs', methods=['GET'])
-def api_documentation():
-    """API documentation endpoint"""
-    docs = {
-        "title": "MongoDB Flask API",
-        "version": "1.0.0",
-        "endpoints": {
-            "GET /health": {
-                "description": "Health check with database stats",
-                "response": "Database connection status and statistics"
-            },
-            "GET /collections": {
-                "description": "List all collections with counts and sample fields",
-                "response": "Array of collection information"
-            },
-            "GET /query/<collection>": {
-                "description": "Query collection with advanced filtering",
-                "parameters": {
-                    "limit": "Number of documents to return (max 1000)",
-                    "skip": "Number of documents to skip",
-                    "sort": "Sort fields (comma-separated, prefix with - for desc)",
-                    "fields": "Fields to include/exclude (comma-separated, prefix with - to exclude)",
-                    "search": "Text search across common fields",
-                    "field__operator": "Advanced filtering (gte, lte, gt, lt, ne, in, nin, regex, exists)"
-                },
-                "examples": {
-                    "Basic": "/query/users?limit=10&skip=0",
-                    "Filtering": "/query/users?age__gte=18&status=active",
-                    "Sorting": "/query/users?sort=-created_at,name",
-                    "Search": "/query/users?search=john&limit=5",
-                    "Field selection": "/query/users?fields=name,email,-_id"
-                }
-            },
-            "GET /collection/<collection>/schema": {
-                "description": "Get schema information for collection",
-                "parameters": {
-                    "sample_size": "Number of documents to sample for schema inference"
-                }
-            },
-            "POST /collection/<collection>/aggregate": {
-                "description": "Execute MongoDB aggregation pipeline",
-                "body": {
-                    "pipeline": "Array of aggregation stages"
-                }
-            }
-        }
-    }
-    return jsonify(docs), 200
 
 @app.errorhandler(404)
 def not_found(error):
@@ -446,15 +406,20 @@ def internal_error(error):
         "error": "Internal server error"
     }), 500
 
+
 if __name__ == '__main__':
-    print(f"🚀 Starting Enhanced Flask MongoDB API")
-    print(f"📍 Server: http://{Config.HOST}:{Config.PORT}")
-    print(f"📊 Database: {Config.DATABASE_NAME}")
-    print(f"🔧 Debug mode: {Config.DEBUG}")
-    print(f"📚 API Docs: http://{Config.HOST}:{Config.PORT}/docs")
-    
+    # Only print logs if this is the main process, not the reloader
+    if os.getenv('WERKZEUG_RUN_MAIN') == 'true':
+        print(f"🚀 Starting Enhanced Flask MongoDB API")
+        print(f"📍 Server accessible at:")
+        print(f"   - Local: http://127.0.0.1:{Config.PORT}")
+        print(f"   - Network: http://{Config.HOST}:{Config.PORT}" if Config.HOST != '127.0.0.1' else "")
+        print(f"📊 Database: {Config.DATABASE_NAME}")
+        print(f"🔧 Debug mode: {Config.DEBUG}")
+        print(f"📚 API Docs: http://127.0.0.1:{Config.PORT}/docs")
+
     app.run(
-        debug=Config.DEBUG, 
-        host=Config.HOST, 
+        debug=Config.DEBUG,
+        host=Config.HOST,
         port=Config.PORT
     )
