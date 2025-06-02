@@ -1,24 +1,659 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flask API Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-{% block content %}
-<h1 class="mb-4"></h1>
- <h1>Database Connection Status</h1>
-  <div id="status" class="status">Checking...</div>
-  <div id="details" class="info"></div>
-<table class="table table-bordered">
-    <thead>
-        <tr>
-            <th>Collection Name</th>
-            <th>Document Count</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for collection in collections %}
-        <tr>
-            <td>{{ collection.name }}</td>
-            <td>{{ collection.count }}</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
-{% endblock %}
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #000000 0%, #1e00ff 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 30px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+
+        .card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 30px 60px rgba(0,0,0,0.15);
+        }
+
+        .card h2 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: #2d3748;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .icon {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        textarea.form-control {
+            resize: vertical;
+            min-height: 120px;
+            font-family: 'Fira Code', monospace;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f7fafc;
+            color: #4a5568;
+            border: 2px solid #e2e8f0;
+        }
+
+        .btn-secondary:hover {
+            background: #edf2f7;
+            border-color: #cbd5e0;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #48bb78, #38a169);
+            color: white;
+        }
+
+        .btn-info {
+            background: linear-gradient(135deg, #4299e1, #3182ce);
+            color: white;
+        }
+
+        .response-area {
+            margin-top: 20px;
+            padding: 16px;
+            background: #f7fafc;
+            border-radius: 12px;
+            border-left: 4px solid #667eea;
+            font-family: 'Fira Code', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .collections-list {
+            margin-top: 20px;
+        }
+
+        .collection-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: #f7fafc;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .collection-item:hover {
+            background: #edf2f7;
+        }
+
+        .collection-name {
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .collection-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-online {
+            background: #48bb78;
+        }
+
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .metric-card {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            text-align: center;
+            padding: 20px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .metric-label {
+            opacity: 0.9;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .container {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Dashboard</h1>
+            <p>Manage your collections, analyze with Gemini, and explore your data</p>
+        </div>
+
+        <div class="dashboard-grid">
+            <!-- Collections Overview -->
+            <div class="card">
+                <h2>
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/>
+                    </svg>
+                    Collections Overview
+                </h2>
+                <div class="metric-card">
+                    <div class="metric-value" id="totalCollections">-</div>
+                    <div class="metric-label">Total Collections</div>
+                </div>
+                <button class="btn btn-primary" onclick="loadCollections()">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+                    </svg>
+                    Refresh Collections
+                </button>
+                <div class="collections-list" id="collectionsList"></div>
+            </div>
+
+            <!-- Gemini Analysis -->
+            <div class="card">
+                <h2>
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                    Gemini AI Analysis
+                </h2>
+                <div class="form-group">
+                    <label for="geminiCollection">Collection Name</label>
+                    <input type="text" class="form-control" id="geminiCollection" placeholder="Enter collection name to analyze">
+                </div>
+                <div class="form-group">
+                    <label for="geminiPrompt">Analysis Prompt</label>
+                    <textarea class="form-control" id="geminiPrompt" placeholder="Enter your analysis prompt (e.g., 'Provide insights on this data', 'Summarize the key patterns', etc.)">Provide insights on this data</textarea>
+                </div>
+                <button class="btn btn-primary" onclick="analyzeWithGemini()">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+                    </svg>
+                    Analyze Collection
+                </button>
+                <div class="response-area" id="geminiResponse"></div>
+            </div>
+
+            <!-- Query Collection -->
+            <div class="card">
+                <h2>
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                    </svg>
+                    Query Collection
+                </h2>
+                <div class="form-group">
+                    <label for="queryCollection">Collection Name</label>
+                    <input type="text" class="form-control" id="queryCollection" placeholder="Enter collection name">
+                </div>
+                <button class="btn btn-success" onclick="queryCollection()">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M8 17l4-4-4-4v8z"/>
+                    </svg>
+                    Execute Query
+                </button>
+                <div class="response-area" id="queryResponse"></div>
+            </div>
+
+            <!-- Collection Schema -->
+            <div class="card">
+                <h2>
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                    </svg>
+                    Collection Schema
+                </h2>
+                <div class="form-group">
+                    <label for="schemaCollection">Collection Name</label>
+                    <input type="text" class="form-control" id="schemaCollection" placeholder="Enter collection name">
+                </div>
+                <button class="btn btn-info" onclick="getSchema()">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M13,9H18.5L13,3.5V9M6,2H14L20,8V20A2,2 0 0,1 18,22H6C4.89,22 4,21.1 4,20V4C4,2.89 4.89,2 6,2M15,18V16H6V18H15M18,14V12H6V14H18Z"/>
+                    </svg>
+                    Get Schema
+                </button>
+                <div class="response-area" id="schemaResponse"></div>
+            </div>
+
+            <!-- Aggregate Data -->
+            <div class="card">
+                <h2>
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M16,11V3H8V9H2V21H22V11H16M10,5H14V9H10V5M4,11H11V19H4V11M13,13H20V19H13V13Z"/>
+                    </svg>
+                    Aggregate Data
+                </h2>
+                <div class="form-group">
+                    <label for="aggregateCollection">Collection Name</label>
+                    <input type="text" class="form-control" id="aggregateCollection" placeholder="Enter collection name">
+                </div>
+                <div class="form-group">
+                    <label for="aggregatePipeline">Aggregation Pipeline (JSON)</label>
+                    <textarea class="form-control" id="aggregatePipeline" placeholder='[{"$match": {"field": "value"}}, {"$group": {"_id": "$field", "count": {"$sum": 1}}}]'></textarea>
+                </div>
+                <button class="btn btn-primary" onclick="aggregateData()">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M2,2V4H20V2H2M20.84,7.05L16.83,11.06L15.31,9.54L19.32,5.53L20.84,7.05M9.17,11.06L5.16,7.05L6.68,5.53L10.69,9.54L9.17,11.06M11,13H13V20H11V13M9,13V20H7V13H9M15,13H17V20H15V13Z"/>
+                    </svg>
+                    Run Aggregation
+                </button>
+                <div class="response-area" id="aggregateResponse"></div>
+            </div>
+
+            <!-- API Documentation -->
+            <div class="card">
+                <h2>
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M14,3V5H17.59L7.76,14.83L9.17,16.24L19,6.41V10H21V3M19,19H5V5H12V3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V12H19V19Z"/>
+                    </svg>
+                    API Documentation
+                </h2>
+                <p style="margin-bottom: 20px; color: #666;">Access comprehensive API documentation and testing interface.</p>
+                <a href="/docs" target="_blank" class="btn btn-secondary">
+                    <svg class="icon" viewBox="0 0 24 24">
+                        <path d="M14,3V5H17.59L7.76,14.83L9.17,16.24L19,6.41V10H21V3M19,19H5V5H12V3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V12H19V19Z"/>
+                    </svg>
+                    Open Swagger UI
+                </a>
+                <div style="margin-top: 15px;">
+                    <span class="status-indicator status-online"></span>
+                    <span style="color: #666; font-size: 14px;">API Documentation Available</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API base URL - since we're serving from Flask, use relative URLs
+        const API_BASE = 'http://127.0.0.1:5000/';
+
+        // Load collections on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadCollections();
+        });
+
+        function showLoading(elementId) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.textContent = 'Loading...';
+        }
+
+        function showResponse(elementId, data) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.textContent = JSON.stringify(data, null, 2);
+        }
+
+        function showError(elementId, error) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.textContent = `Error: ${error}`;
+            element.style.color = '#e53e3e';
+        }
+
+        function displayCollections(collections) {
+            const collectionsContainer = document.getElementById('collectionsList');
+            const totalCollections = document.getElementById('totalCollections');
+            
+            console.log('Displaying collections:', collections); // Debug log
+            
+            // Handle different possible data formats
+            let collectionList = collections;
+            
+            // If collections is an object with a collections property
+            if (collections && collections.collections) {
+                collectionList = collections.collections;
+            }
+            
+            // If collections is not an array, try to convert it
+            if (!Array.isArray(collectionList)) {
+                if (typeof collectionList === 'object' && collectionList !== null) {
+                    // Convert object keys to array
+                    collectionList = Object.keys(collectionList);
+                } else {
+                    collectionList = [];
+                }
+            }
+            
+            // Update total count
+            totalCollections.textContent = collectionList.length;
+            
+            if (collectionList.length === 0) {
+                collectionsContainer.innerHTML = '<p style="color: #666; text-align: center; padding: 20px;">No collections found</p>';
+            } else {
+                collectionsContainer.innerHTML = collectionList.map(collection => {
+                    // Handle both string and object formats
+                    const name = typeof collection === 'string' ? collection : (collection.name || collection._id || 'Unknown');
+                    const count = typeof collection === 'object' ? collection.count : '';
+                    const countDisplay = count ? ` (${count} documents)` : '';
+                    
+                    return `
+                        <div class="collection-item">
+                            <div>
+                                <span class="collection-name">${name}</span>
+                                <small style="color: #666; margin-left: 8px;">${countDisplay}</small>
+                            </div>
+                            <div class="collection-actions">
+                                <button class="btn btn-info btn-small" onclick="querySpecificCollection('${name}')">Query</button>
+                                <button class="btn btn-secondary btn-small" onclick="getSpecificSchema('${name}')">Schema</button>
+                                <button class="btn btn-primary btn-small" onclick="analyzeSpecificCollection('${name}')">Analyze</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+            
+            collectionsContainer.style.display = 'block';
+        }
+
+        async function loadCollections() {
+            try {
+                showLoading('collectionsList');
+                const response = await fetch(`${API_BASE}/collections`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('Collections data:', data); // Debug log
+                
+                displayCollections(data);
+                
+                document.getElementById('collectionsList').style.display = 'block';
+            } catch (error) {
+                console.error('Error loading collections:', error);
+                showError('collectionsList', error.message);
+                document.getElementById('totalCollections').textContent = 'Error';
+            }
+        }
+
+        async function analyzeWithGemini() {
+            const collectionName = document.getElementById('geminiCollection').value;
+            const promptTemplate = document.getElementById('geminiPrompt').value;
+            
+            if (!collectionName.trim()) {
+                alert('Please enter a collection name');
+                return;
+            }
+            
+            if (!promptTemplate.trim()) {
+                alert('Please enter an analysis prompt');
+                return;
+            }
+
+            try {
+                showLoading('geminiResponse');
+                const response = await fetch(`${API_BASE}/gemini/analyze`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        collection_name: collectionName,
+                        prompt_template: promptTemplate
+                    })
+                });
+                
+                const data = await response.json();
+                showResponse('geminiResponse', data);
+            } catch (error) {
+                showError('geminiResponse', error.message);
+            }
+        }
+
+        async function queryCollection() {
+            const collection = document.getElementById('queryCollection').value;
+            if (!collection.trim()) {
+                alert('Please enter a collection name');
+                return;
+            }
+
+            try {
+                showLoading('queryResponse');
+                const response = await fetch(`${API_BASE}/query/${collection}`);
+                const data = await response.json();
+                showResponse('queryResponse', data);
+            } catch (error) {
+                showError('queryResponse', error.message);
+            }
+        }
+
+        async function getSchema() {
+            const collection = document.getElementById('schemaCollection').value;
+            if (!collection.trim()) {
+                alert('Please enter a collection name');
+                return;
+            }
+
+            try {
+                showLoading('schemaResponse');
+                const response = await fetch(`${API_BASE}/collection/${collection}/schema`);
+                const data = await response.json();
+                showResponse('schemaResponse', data);
+            } catch (error) {
+                showError('schemaResponse', error.message);
+            }
+        }
+
+        async function aggregateData() {
+            const collection = document.getElementById('aggregateCollection').value;
+            const pipeline = document.getElementById('aggregatePipeline').value;
+            
+            if (!collection.trim()) {
+                alert('Please enter a collection name');
+                return;
+            }
+            
+            if (!pipeline.trim()) {
+                alert('Please enter an aggregation pipeline');
+                return;
+            }
+
+            try {
+                const pipelineData = JSON.parse(pipeline);
+                showLoading('aggregateResponse');
+                
+                const response = await fetch(`${API_BASE}/collection/${collection}/aggregate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ pipeline: pipelineData })
+                });
+                
+                const data = await response.json();
+                showResponse('aggregateResponse', data);
+            } catch (error) {
+                if (error.name === 'SyntaxError') {
+                    showError('aggregateResponse', 'Invalid JSON in aggregation pipeline');
+                } else {
+                    showError('aggregateResponse', error.message);
+                }
+            }
+        }
+
+        // Helper functions for collection list actions
+        function querySpecificCollection(collection) {
+            document.getElementById('queryCollection').value = collection;
+            queryCollection();
+        }
+
+        function getSpecificSchema(collection) {
+            document.getElementById('schemaCollection').value = collection;
+            getSchema();
+        }
+
+        // Helper function to quickly analyze a collection
+        function analyzeSpecificCollection(collection) {
+            document.getElementById('geminiCollection').value = collection;
+            document.getElementById('geminiPrompt').value = 'Provide insights on this data';
+            // Scroll to gemini section
+            document.querySelector('[id*="gemini"]').scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>

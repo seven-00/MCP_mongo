@@ -32,6 +32,135 @@
                 }
             }
         },
+            "/gemini/analyze": {
+                "post": {
+                    "summary": "Analyze Collection with Gemini AI",
+                    "description": "Analyze data from a specific collection using Google's Gemini AI with a custom prompt template",
+                    "tags": [
+                        "AI Analysis"
+                    ],
+                    "requestBody": {
+                        "required": true,
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "collection_name",
+                                        "prompt_template"
+                                    ],
+                                    "properties": {
+                                        "collection_name": {
+                                            "type": "string",
+                                            "description": "Name of the collection to analyze",
+                                            "example": "theaters"
+                                        },
+                                        "prompt_template": {
+                                            "type": "string",
+                                            "description": "Custom prompt template for AI analysis",
+                                            "example": "Provide insights on this data"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "responses": {
+                        "200": {
+                            "description": "Successful analysis response from Gemini AI",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "properties": {
+                                            "analysis": {
+                                                "type": "string",
+                                                "description": "AI-generated analysis of the collection data"
+                                            },
+                                            "collection_name": {
+                                                "type": "string",
+                                                "description": "Name of the analyzed collection"
+                                            },
+                                            "prompt_used": {
+                                                "type": "string",
+                                                "description": "The prompt template that was used"
+                                            },
+                                            "timestamp": {
+                                                "type": "string",
+                                                "format": "date-time",
+                                                "description": "Timestamp of the analysis"
+                                            }
+                                        }
+                                    },
+                                    "example": {
+                                        "analysis": "Based on the theater data analysis, I can provide the following insights: The dataset contains information about movie theaters with key patterns in location distribution, seating capacity trends, and operational metrics...",
+                                        "collection_name": "theaters",
+                                        "prompt_used": "Provide insights on this data",
+                                        "timestamp": "2024-01-15T10:30:45Z"
+                                    }
+                                }
+                            }
+                        },
+                        "400": {
+                            "description": "Bad Request - Missing required fields",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "properties": {
+                                            "error": {
+                                                "type": "string",
+                                                "description": "Error message"
+                                            }
+                                        }
+                                    },
+                                    "example": {
+                                        "error": "Collection name is required"
+                                    }
+                                }
+                            }
+                        },
+                        "404": {
+                            "description": "Collection not found",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "properties": {
+                                            "error": {
+                                                "type": "string",
+                                                "description": "Error message"
+                                            }
+                                        }
+                                    },
+                                    "example": {
+                                        "error": "Collection 'invalid_collection' not found"
+                                    }
+                                }
+                            }
+                        },
+                        "500": {
+                            "description": "Internal Server Error - AI service unavailable or processing error",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "properties": {
+                                            "error": {
+                                                "type": "string",
+                                                "description": "Error message"
+                                            }
+                                        }
+                                    },
+                                    "example": {
+                                        "error": "Gemini AI service temporarily unavailable"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
         "/query/{collection}": {
             "get": {
                 "summary": "Query Collection with Advanced Filtering",

@@ -1,3 +1,4 @@
+import requests
 import atexit
 import re
 import os
@@ -22,6 +23,77 @@ app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
 
 # Register cleanup function
 atexit.register(lambda: db_instance.close_connection())
+
+
+@app.route('/gemini/analyze', methods=['POST'])
+def analyze_data_with_gemini():
+    """
+    Analyze all data in a specified MongoDB collection with context provided dynamically.
+    """
+    GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', 'your_default_key')
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
+    headers = {'Content-Type': 'application/json'}
+
+    try:
+        # Get collection name from request
+        collection_name = request.json.get('collection_name')
+        analysis_goals = request.json.get(
+            'analysis_goals', "Find trends, patterns, or anomalies.")
+
+        if not collection_name:
+            return jsonify({"error": "Collection name is required"}), 400
+
+        # Fetch all data from the specified MongoDB collection
+        collection = db_instance.get_collection(collection_name)
+        data_cursor = collection.find()
+        data_list = list(data_cursor)
+
+        if not data_list:
+            return jsonify({"error": "No data found in the specified collection"}), 404
+
+        # Derive metadata from the data
+        example_data = data_list[:5]  # Use first 5 documents as examples
+        fields = list(data_list[0].keys()) if data_list else []
+        total_records = len(data_list)
+
+        # Construct a detailed prompt
+        prompt = (
+            f"The data contains {total_records} records with the following fields: {', '.join(fields)}. "
+            f"Here are a few example rows: {json.dumps(example_data, default=str)}. "
+            f"{analysis_goals} Please provide insights based on this data."
+        )
+
+        # Limit prompt size for Gemini
+        prompt = prompt[:10000]
+
+        # Prepare payload for Gemini
+        payload = {
+            "contents": [
+                {
+                    "parts": [
+                        {"text": prompt}
+                    ]
+                }
+            ]
+        }
+
+        # Call Gemini API
+        response = requests.post(url, headers=headers, json=payload)
+        response.raise_for_status()
+        gemini_response = response.json()
+
+        return jsonify({
+            "success": True,
+            "analysis": gemini_response,
+            "data_used": total_records,
+            "collection": collection_name
+        }), 200
+
+    except requests.exceptions.RequestException as e:
+        return jsonify({"error": f"Gemini API Error: {str(e)}"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 def build_filter_from_params(args):
     """Build MongoDB filter from query parameters with advanced operators"""
@@ -341,13 +413,7 @@ def get_collection_schema(collection_name):
 
 @app.route('/')
 def dashboard():
-    # Example: Fetch collection stats for the dashboard
-    collections = db_instance.db.list_collection_names()
-    stats = []
-    for name in collections:
-        count = db_instance.db[name].count_documents({})
-        stats.append({"name": name, "count": count})
-    return render_template('dashboard.html', collections=stats)
+    return render_template('dashboard.html')
 
 @app.route('/collection/<collection_name>/aggregate', methods=['POST'])
 def aggregate_collection(collection_name):
@@ -413,7 +479,6 @@ if __name__ == '__main__':
         print(f"🚀 Starting Enhanced Flask MongoDB API")
         print(f"📍 Server accessible at:")
         print(f"   - Local: http://127.0.0.1:{Config.PORT}")
-        print(f"   - Network: http://{Config.HOST}:{Config.PORT}" if Config.HOST != '127.0.0.1' else "")
         print(f"📊 Database: {Config.DATABASE_NAME}")
         print(f"🔧 Debug mode: {Config.DEBUG}")
         print(f"📚 API Docs: http://127.0.0.1:{Config.PORT}/docs")
